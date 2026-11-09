@@ -1,0 +1,45 @@
+begin;
+do $$
+declare sid uuid;cid uuid;token text;w date:=date_trunc('week',now() at time zone 'Asia/Seoul')::date;pid uuid;tid uuid;st int;denied boolean;other uuid:=gen_random_uuid();other_plan uuid;other_task uuid;
+begin
+ select p.id,'id:'||l.access_id_label into sid,token from public.profiles p join planner_private.student_links l on l.student_id=p.id where p.role='student' limit 1;
+ if token is null then raise exception '검증 가능한 학생 ID 없음';end if;
+ select coach_id into cid from public.coach_student_assignments where student_id=sid limit 1;
+ insert into public.weekly_plans(student_id,week_start) values(sid,w) on conflict(student_id,week_start) do nothing;
+ select id into pid from public.weekly_plans where student_id=sid and week_start=w;
+ insert into public.tasks(student_id,plan_id,title,subject,due_date,student_note) values(sid,pid,'권한 검증','영어',w,'보존할 메모') returning id into tid;
+ for st in 1..3 loop
+  update public.profiles set stage=st where id=sid;
+  denied:=false;
+  begin perform public.student_portal_update(token,'plan',jsonb_build_object('week',w,'goal','단계별 목표 검증'));exception when others then denied:=true;end;
+  if denied<>(st<3) then raise exception '주간 목표 권한 오류: %',st;end if;
+  denied:=false;
+  begin perform public.student_portal_update(token,'task',jsonb_build_object('plan',pid,'id',tid,'title','단계별 과제 검증','description','학생이 수정','subject','수학','date',w+1,'cancel',false));exception when others then denied:=true;end;
+  if denied<>(st<2) then raise exception '일일 계획 수정 권한 오류: %',st;end if;
+  if st>=2 and not exists(select 1 from public.tasks where id=tid and title='단계별 과제 검증' and subject='수학' and due_date=w+1 and student_note='보존할 메모') then raise exception '일일 계획 필드 수정 실패';end if;
+  denied:=false;
+  begin perform public.student_portal_update(token,'task',jsonb_build_object('plan',null,'week',w+st*7,'title','빈 주의 일일 계획','description','','subject','영어','date',w+st*7));exception when others then denied:=true;end;
+  if denied<>(st<2) then raise exception '빈 주 과제 추가 권한 오류: %',st;end if;
+  perform public.save_student_timetable(token,w,'[{"day":1,"hour":9,"span":3,"content":"학생 시간표"}]'::jsonb);
+  perform public.student_portal_update(token,'note',jsonb_build_object('id',tid,'note','보존할 메모'));
+ end loop;
+ perform public.student_portal_update(token,'task',jsonb_build_object('plan',pid,'id',tid,'title','취소 검증','subject','수학','date',w+1,'cancel',true));
+ if not (select cancelled from public.tasks where id=tid) then raise exception '학생 과제 취소 실패';end if;
+ insert into public.profiles(id,name,role,grade) values(other,'권한 검증용','student','시험');
+ insert into public.weekly_plans(student_id,week_start) values(other,w) returning id into other_plan;
+ insert into public.tasks(student_id,plan_id,title,subject,due_date) values(other,other_plan,'다른 학생 과제','영어',w) returning id into other_task;
+ denied:=false;
+ begin perform public.student_portal_update(token,'task',jsonb_build_object('plan',other_plan,'id',other_task,'title','허용 안 됨','subject','영어','date',w));exception when others then denied:=true;end;
+ if not denied then raise exception '다른 학생 수정 허용됨';end if;
+ perform set_config('request.jwt.claim.sub',cid::text,true);
+ perform public.save_coach_timetable(sid,w,'[{"day":2,"hour":23,"span":3,"content":"코치 시간표"}]'::jsonb);
+ if not exists(select 1 from jsonb_array_elements(public.read_student_timetable(token,w)) c where c->>'content'='코치 시간표' and c->>'span'='3') then raise exception '코치 시간표 학생 조회 실패';end if;
+ denied:=false;
+ begin perform public.save_coach_timetable(other,w,'[]'::jsonb);exception when others then denied:=true;end;
+ if not denied then raise exception '미배정 학생 수정 허용됨';end if;
+ perform set_config('request.jwt.claim.sub','',true);
+ denied:=false;
+ begin perform public.save_coach_timetable(sid,w,'[]'::jsonb);exception when others then denied:=true;end;
+ if not denied then raise exception '익명 코치 수정 허용됨';end if;
+end$$;
+rollback;

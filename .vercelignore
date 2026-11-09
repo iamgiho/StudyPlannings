@@ -1,0 +1,11 @@
+.cache/
+node_modules/
+.next/
+.env*
+.git/
+*.tsbuildinfo
+verification-artifacts/
+output/
+tmp/
+assets/fonts/NotoSansKR-variable.ttf
+assets/fonts/NotoSansCJKkr-Regular.otf

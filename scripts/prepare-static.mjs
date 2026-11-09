@@ -1,0 +1,15 @@
+import {createRequire} from 'node:module';
+import {readFileSync,writeFileSync,mkdirSync,copyFileSync} from 'node:fs';
+const require=createRequire(import.meta.url);
+const {build}=require(require.resolve('esbuild',{paths:[require.resolve('tsx')]}));
+mkdirSync('web/vendor',{recursive:true});mkdirSync('web/fonts',{recursive:true});
+await build({entryPoints:['scripts/vendor-supabase.js'],outfile:'web/vendor/supabase.js',bundle:true,minify:true,format:'esm',platform:'browser',target:'es2022',legalComments:'eof'});
+await build({entryPoints:['scripts/vendor-pdf.js'],outfile:'web/vendor/pdf.js',bundle:true,minify:true,format:'esm',platform:'browser',target:'es2022',legalComments:'eof'});
+copyFileSync('assets/fonts/NotoSansKR-Regular.ttf','web/fonts/NotoSansKR-Regular.ttf');
+copyFileSync('assets/fonts/NotoSansKR-OFL.txt','web/fonts/OFL.txt');
+const env=readFileSync('.env.local','utf8');
+const value=key=>{const line=env.split(/\r?\n/).find(l=>l.startsWith(key+'='));if(!line)throw Error('Missing '+key);return line.slice(key.length+1).replace(/^"|"$/g,'')};
+const existing=readFileSync('web/config.js','utf8');
+const adminEmail=existing.match(/"adminEmail"\s*:\s*"([^"\n]+)"/)?.[1]||'planner-demo0@example.com';
+writeFileSync('web/config.js','// Public browser configuration. No passwords or service-role secrets belong here.\nexport const config='+JSON.stringify({url:value('NEXT_PUBLIC_SUPABASE_URL'),key:value('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'),adminEmail},null,2)+';\n');
+console.log('Standalone HTML ready in web/. No Next.js or server API is needed to run it.');
