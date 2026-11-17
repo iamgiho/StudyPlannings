@@ -4,7 +4,7 @@ import {weeklyGoals,goalEditorRow,readGoalEditor} from './weekly-goals.js';
 import {createClient} from './vendor/supabase.js';
 import {config} from './config.js';
 import {subjects,today,addDays,monday,monthEnd,stats,percent,escape as h,reviewPolicy} from './domain.js';
-import {timetableSection,readTimetable,changeTimetableBlock,resetTimetable,fitTimetable} from './timetable.js?v=20261117-2';
+import {timetableSection,readTimetable,changeTimetableBlock,resetTimetable,fitTimetable} from './timetable.js?v=20261117-3';
 
 const db=createClient(config.url,config.key);
 // A separate client prevents a coach's browser session from being attached to

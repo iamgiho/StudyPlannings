@@ -17,6 +17,7 @@ export function changeTimetableBlock(cells,day,start,end,split=false){
 export function timetableSection(cells=[],{readOnly=false,editing=false}={}){
  const allowEdit=!readOnly;readOnly=readOnly||!editing;
  const visible=new Set();for(const c of cells)if(c.content?.trim()||(c.span||1)>1)for(let i=0;i<(c.span||1);i++)visible.add(timetableHours[row(c.hour)+i]);
+ if(visible.size){const occupied=timetableHours.map((hour,index)=>visible.has(hour)?index:-1).filter(index=>index>=0);for(let index=Math.min(...occupied);index<=Math.max(...occupied);index++)visible.add(timetableHours[index]);}
  const values=new Map(cells.map(c=>[`${c.day}:${c.hour}`,c]));
  const covered=new Set();
  for(const c of cells)for(let i=1;i<(c.span||1);i++)covered.add(`${c.day}:${timetableHours[row(c.hour)+i]}`);
