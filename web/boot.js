@@ -24,7 +24,7 @@
     explain('실행하기.bat로 열어 주세요', 'index.html을 직접 열면 브라우저가 모듈 실행을 차단합니다. Vercel 없이도 로컬 서버로 사용할 수 있습니다.');
     return;
   }
-  const scriptUrl = new URL('./app.js?v=20261117-3', document.currentScript.src);
+  const scriptUrl = new URL('./app.js?v=20261118-1', document.currentScript.src);
   const timer = setTimeout(() => {
     if (!document.documentElement.dataset.appReady) explain('파일을 불러오는 중입니다', '연결이 지연되고 있습니다. 페이지를 새로고침하거나 로컬 서버가 켜져 있는지 확인하세요.');
   }, 15000);
